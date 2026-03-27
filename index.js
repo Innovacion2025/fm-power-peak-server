@@ -8,6 +8,34 @@ const app = express();
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 10000;
+// ==========================
+// CREDENCIALES
+// ==========================
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "123456"; // cambia aquí tu clave
+
+// ==========================
+// BASIC AUTH
+// ==========================
+function basicAuth(req, res, next) {
+  const auth = req.headers.authorization || "";
+
+  if (!auth.startsWith("Basic ")) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Node-RED Admin"');
+    return res.status(401).send("Autenticacion requerida");
+  }
+
+  const base64Credentials = auth.split(" ")[1];
+  const credentials = Buffer.from(base64Credentials, "base64").toString("utf8");
+  const [user, pass] = credentials.split(":");
+
+  if (user === ADMIN_USER && pass === ADMIN_PASS) {
+    return next();
+  }
+
+  res.setHeader("WWW-Authenticate", 'Basic realm="Node-RED Admin"');
+  return res.status(401).send("Credenciales invalidas");
+}
 
 // ==========================
 // MIDDLEWARE
@@ -36,14 +64,15 @@ if (!fs.existsSync(userDir)) {
 }
 
 const settings = {
-  httpAdminRoot: "/red",
+  httpAdminRoot: "/admin",
   httpNodeRoot: "/",
   userDir
 };
 
+
 RED.init(server, settings);
 
-app.use(settings.httpAdminRoot, RED.httpAdmin);
+app.use("/admin", basicAuth, RED.httpAdmin);
 app.use(settings.httpNodeRoot, RED.httpNode);
 
 // ==========================
